@@ -228,7 +228,7 @@ async def on_ready():
     check_new_applications.start()
 
     try:
-        guild = discord.Object(id=ТВОЙ_ID_СЕРВЕРА)
+        guild = discord.Object(id=1478825198957367339)
         synced = await bot.tree.sync(guild=guild)
         print(f"✅ Команд синхронизировано: {len(synced)}")
     except Exception as e:
@@ -256,4 +256,5 @@ keep_alive()
 TOKEN = os.environ["DISCORD_TOKEN"]
 
 bot.run(TOKEN)
+
 
