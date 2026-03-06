@@ -8,7 +8,8 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from keep_alive import keep_alive
 
-# Настройки
+# ================= НАСТРОЙКИ =================
+
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
@@ -16,7 +17,6 @@ intents.reactions = True
 
 bot = commands.Bot(command_prefix='!', intents=intents)
 
-# ID каналов
 CHANNELS = {
     'ss': 1479554031444689009,
     'schedule': 1478826477880344586,
@@ -25,14 +25,14 @@ CHANNELS = {
     'applications': 1479581481444839537
 }
 
-# Роли
 ALLOWED_ROLES = ['Директор', 'Заместитель Директора']
 
-# Google Sheets
 SPREADSHEET_ID = '1zL5rRk-zny2riAdRSUl2ZiA-pK76--dGdSJObuVLZRs'
 SHEET_NAME = 'Ответы на форму (1)'
 
 DATA_FILE = 'bot_data.json'
+
+# ================= ДАННЫЕ =================
 
 def load_data():
     try:
@@ -67,7 +67,6 @@ def get_google_sheet():
 
         creds_dict = json.loads(os.environ["GOOGLE_CREDENTIALS"])
 
-        # исправляем переносы строк
         creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
 
         creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
@@ -82,7 +81,7 @@ def get_google_sheet():
         print(f"❌ Ошибка подключения к Google Sheets: {e}")
         return None
 
-# ================= ПРОВЕРКА НОВЫХ ЗАЯВОК =================
+# ================= ПРОВЕРКА ЗАЯВОК =================
 
 @tasks.loop(seconds=30)
 async def check_new_applications():
@@ -105,10 +104,10 @@ async def check_new_applications():
 
         if len(all_records) > last_row:
 
+            print(f"🔍 Новых заявок: {len(all_records) - last_row}")
+
             for i in range(last_row, len(all_records)):
-
                 record = all_records[i]
-
                 await send_application_to_channel(record)
 
             data['last_row'] = len(all_records)
@@ -123,6 +122,7 @@ async def send_application_to_channel(record):
     channel = bot.get_channel(CHANNELS['ss'])
 
     if not channel:
+        print("❌ Канал не найден")
         return
 
     name = record.get('Имя Фамилия (IC)', 'Не указано')
@@ -146,7 +146,7 @@ async def send_application_to_channel(record):
     embed.add_field(name="👤 Имя Фамилия", value=name, inline=True)
     embed.add_field(name="⏰ Часов в паспорте", value=hours, inline=True)
 
-    if docs.startswith(('http://', 'https://')):
+    if docs and docs.startswith(("http://", "https://")):
         embed.add_field(name="📎 Документы", value=f"[Ссылка]({docs})", inline=True)
     else:
         embed.add_field(name="📎 Документы", value=docs, inline=True)
@@ -159,6 +159,8 @@ async def send_application_to_channel(record):
     await msg.add_reaction("❌")
     await msg.add_reaction("📞")
     await msg.add_reaction("📋")
+
+    print(f"✅ Заявка от {name} отправлена")
 
 # ================= РЕАКЦИИ =================
 
@@ -174,11 +176,9 @@ async def on_raw_reaction_add(payload):
     try:
 
         channel = bot.get_channel(payload.channel_id)
-
         message = await channel.fetch_message(payload.message_id)
 
         guild = bot.get_guild(payload.guild_id)
-
         user = guild.get_member(payload.user_id)
 
         embed = message.embeds[0]
@@ -201,10 +201,23 @@ async def on_raw_reaction_add(payload):
 
             await channel.send(f"❌ Заявка отклонена {user.mention}")
 
+        elif str(payload.emoji) == "📞":
+
+            await channel.send(f"📞 {user.mention} свяжется с кандидатом")
+
+        elif str(payload.emoji) == "📋":
+
+            embed.color = 0xf1c40f
+            embed.title = "📋 ЗАЯВКА В РАССМОТРЕНИИ"
+
+            await message.edit(embed=embed)
+
+            await channel.send(f"📋 Заявка рассматривается {user.mention}")
+
         await message.remove_reaction(payload.emoji, user)
 
     except Exception as e:
-        print(e)
+        print(f"Ошибка реакции: {e}")
 
 # ================= ЗАПУСК =================
 
@@ -222,10 +235,27 @@ async def on_ready():
         print(f"Команд загружено: {len(synced)}")
 
     except Exception as e:
-        print(e)
+        print(f"Ошибка синхронизации: {e}")
+
+    print("✅ Бот готов")
+
+@bot.command()
+async def sync(ctx):
+
+    if ctx.author.guild_permissions.administrator:
+
+        await bot.tree.sync()
+
+        await ctx.send("✅ Команды синхронизированы")
+
+    else:
+
+        await ctx.send("❌ Нет прав")
+
+# ================= ЗАПУСК СЕРВЕРА =================
 
 keep_alive()
 
-TOKEN = "MTQ3OTU1MzY2Mjk0NTU5NTQwMw.G3zKtw.gfBKqVb3K2xfpOproAGX9GO43upkrRJdPbSbvI"
+TOKEN = os.environ["DISCORD_TOKEN"]
 
 bot.run(TOKEN)
