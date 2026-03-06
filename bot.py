@@ -223,19 +223,16 @@ async def on_raw_reaction_add(payload):
 
 @bot.event
 async def on_ready():
-
     print(f'✅ Бот запущен как {bot.user}')
 
     check_new_applications.start()
 
     try:
-
-        synced = await bot.tree.sync()
-
-        print(f"Команд загружено: {len(synced)}")
-
+        guild = discord.Object(id=ТВОЙ_ID_СЕРВЕРА)
+        synced = await bot.tree.sync(guild=guild)
+        print(f"✅ Команд синхронизировано: {len(synced)}")
     except Exception as e:
-        print(f"Ошибка синхронизации: {e}")
+        print(e)
 
     print("✅ Бот готов")
 
@@ -259,3 +256,4 @@ keep_alive()
 TOKEN = os.environ["DISCORD_TOKEN"]
 
 bot.run(TOKEN)
+
