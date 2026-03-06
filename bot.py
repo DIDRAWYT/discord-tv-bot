@@ -224,7 +224,7 @@ async def on_raw_reaction_add(payload):
 @bot.event
 async def on_ready():
     print(f'Бот запущен как {bot.user}')
-    guild = discord.Object(id=ТВОЙ_ID_СЕРВЕРА)
+    guild = discord.Object(id=1478825198957367339)
     
     @bot.tree.command(name="тест", description="Проверка команд", guild=guild)
     async def test(interaction: discord.Interaction):
@@ -253,6 +253,7 @@ keep_alive()
 TOKEN = os.environ["DISCORD_TOKEN"]
 
 bot.run(TOKEN)
+
 
 
 
