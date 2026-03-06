@@ -223,18 +223,15 @@ async def on_raw_reaction_add(payload):
 
 @bot.event
 async def on_ready():
-    print(f'✅ Бот запущен как {bot.user}')
-
-    check_new_applications.start()
-
-    try:
-        guild = discord.Object(id=1478825198957367339)
-        synced = await bot.tree.sync(guild=guild)
-        print(f"✅ Команд синхронизировано: {len(synced)}")
-    except Exception as e:
-        print(e)
-
-    print("✅ Бот готов")
+    print(f'Бот запущен как {bot.user}')
+    guild = discord.Object(id=ТВОЙ_ID_СЕРВЕРА)
+    
+    @bot.tree.command(name="тест", description="Проверка команд", guild=guild)
+    async def test(interaction: discord.Interaction):
+        await interaction.response.send_message("✅ Команды работают!")
+    
+    synced = await bot.tree.sync(guild=guild)
+    print(f"Синхронизировано команд: {len(synced)}")
 
 @bot.command()
 async def sync(ctx):
@@ -256,5 +253,6 @@ keep_alive()
 TOKEN = os.environ["DISCORD_TOKEN"]
 
 bot.run(TOKEN)
+
 
 
