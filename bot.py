@@ -63,7 +63,7 @@ def get_google_sheet():
     """Подключение к Google Sheets"""
     try:
         # Простой путь к файлу внутри контейнера
-        key_path = '/app/keys/google-key.json'
+        key_path = 'google-key.json'
         
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
         creds = ServiceAccountCredentials.from_json_keyfile_name(key_path, scope)
@@ -472,4 +472,5 @@ if __name__ == "__main__":
         bot.run(TOKEN)
     else:
         print("❌ Токен не найден! Добавьте TOKEN в переменные окружения")
+
 
