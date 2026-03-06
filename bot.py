@@ -62,10 +62,15 @@ def check_permissions(interaction):
 def get_google_sheet():
     """Подключение к Google Sheets"""
     try:
+        # Простой путь к файлу внутри контейнера
+        key_path = '/app/keys/google-key.json'
+        
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-        creds = ServiceAccountCredentials.from_json_keyfile_name('google-key.json', scope)
+        creds = ServiceAccountCredentials.from_json_keyfile_name(key_path, scope)
+        
         client = gspread.authorize(creds)
         sheet = client.open_by_key(SPREADSHEET_ID).worksheet(SHEET_NAME)
+        print("✅ Подключение к Google Sheets успешно!")
         return sheet
     except Exception as e:
         print(f"❌ Ошибка подключения к Google Sheets: {e}")
@@ -467,3 +472,4 @@ if __name__ == "__main__":
         bot.run(TOKEN)
     else:
         print("❌ Токен не найден! Добавьте TOKEN в переменные окружения")
+
