@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands, tasks
 from discord import app_commands
 import json
+import os
 from datetime import datetime
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
@@ -459,7 +460,10 @@ async def sync(ctx):
         await ctx.send("❌ Нет прав")
 
 keep_alive()
-TOKEN = "MTQ3OTU1MzY2Mjk0NTU5NTQwMw.GUlF0S.DW68p3gjt-td-oywHRxBYtL0TdsMK6Wbu_Se-M"
+TOKEN = os.environ.get('TOKEN')  # Берем токен из переменных окружения
 
 if __name__ == "__main__":
-    bot.run(TOKEN)
+    if TOKEN:
+        bot.run(TOKEN)
+    else:
+        print("❌ Токен не найден! Добавьте TOKEN в переменные окружения")
