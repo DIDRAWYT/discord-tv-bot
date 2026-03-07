@@ -58,10 +58,11 @@ def check_permissions(interaction):
 def get_google_sheet():
 
     try:
-        encoded_creds = os.environ.get('GOOGLE_CREDENTIALS')
 
-        if encoded_creds:
-            creds_json = base64.b64decode(encoded_creds).decode('utf-8')
+        creds_json = os.environ.get('GOOGLE_CREDENTIALS')
+
+        if creds_json:
+
             creds_dict = json.loads(creds_json)
 
             scope = [
@@ -81,14 +82,18 @@ def get_google_sheet():
             creds = ServiceAccountCredentials.from_json_keyfile_name('google-key.json', scope)
 
         client = gspread.authorize(creds)
+
         sheet = client.open_by_key(SPREADSHEET_ID).worksheet(SHEET_NAME)
+
+        print("✅ Google Sheets подключён")
 
         return sheet
 
     except Exception as e:
-        print("Google ошибка:", e)
-        return None
 
+        print("Google ошибка:", e)
+
+        return None
 
 # ================= ЗАЯВКИ =================
 
@@ -332,4 +337,5 @@ keep_alive()
 TOKEN = os.environ.get("DISCORD_TOKEN")
 
 bot.run(TOKEN)
+
 
