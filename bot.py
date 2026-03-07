@@ -2,53 +2,55 @@ import discord
 from discord.ext import commands, tasks
 from discord import app_commands
 import json
-import os
 from datetime import datetime
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
-
-TOKEN = os.environ["DISCORD_TOKEN"]
-
-SERVER_ID = 1478825198957367339
-
-CHANNELS = {
-    "ss": 1479554031444689009,
-    "applications": 1479581481444839537
-}
-
-ROLE_WARN = "Выговор"
-
-SPREADSHEET_ID = "1zL5rRk-zny2riAdRSUl2ZiA-pK76--dGdSJObuVLZRs"
-SHEET_NAME = "Ответы на форму (1)"
+import os
+import base64
+from keep_alive import keep_alive
 
 intents = discord.Intents.all()
-bot = commands.Bot(command_prefix="!", intents=intents)
+bot = commands.Bot(command_prefix='!', intents=intents)
 
-guild_obj = discord.Object(id=SERVER_ID)
+# ID каналов
+CHANNELS = {
+    'ss': 1479554031444689009,
+    'schedule': 1478826477880344586,
+    'news': 1479458023146651689,
+    'reports': 1479458060866162880,
+    'applications': 1479581481444839537
+}
 
-DATA_FILE = "bot_data.json"
+ALLOWED_ROLES = ['Директор', 'Заместитель Директора']
+WARN_ROLE = "Выговор"
 
+SPREADSHEET_ID = '1zL5rRk-zny2riAdRSUl2ZiA-pK76--dGdSJObuVLZRs'
+SHEET_NAME = 'Ответы на форму (1)'
 
-# ================= DATA =================
+DATA_FILE = 'bot_data.json'
+
 
 def load_data():
     try:
-        with open(DATA_FILE, "r", encoding="utf-8") as f:
+        with open(DATA_FILE, 'r', encoding='utf-8') as f:
             return json.load(f)
     except:
         return {
-            "warns": {},
-            "schedule": [],
-            "stats": {"news": 0, "reports": 0},
-            "last_row": 0,
-            "application_messages": [],
-            "interviews": []
+            'warns': {},
+            'schedule': [],
+            'last_row': 0,
+            'application_messages': []
         }
 
 
 def save_data(data):
-    with open(DATA_FILE, "w", encoding="utf-8") as f:
+    with open(DATA_FILE, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
+
+
+def check_permissions(interaction):
+    roles = [r.name for r in interaction.user.roles]
+    return any(r in ALLOWED_ROLES for r in roles)
 
 
 # ================= GOOGLE =================
@@ -56,31 +58,39 @@ def save_data(data):
 def get_google_sheet():
 
     try:
+        encoded_creds = os.environ.get('GOOGLE_CREDENTIALS')
 
-        scope = [
-            "https://spreadsheets.google.com/feeds",
-            "https://www.googleapis.com/auth/drive"
-        ]
+        if encoded_creds:
+            creds_json = base64.b64decode(encoded_creds).decode('utf-8')
+            creds_dict = json.loads(creds_json)
 
-        creds_dict = json.loads(os.environ["GOOGLE_CREDENTIALS"])
-        creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
+            scope = [
+                "https://spreadsheets.google.com/feeds",
+                "https://www.googleapis.com/auth/drive"
+            ]
 
-        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+            creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
+
+        else:
+
+            scope = [
+                "https://spreadsheets.google.com/feeds",
+                "https://www.googleapis.com/auth/drive"
+            ]
+
+            creds = ServiceAccountCredentials.from_json_keyfile_name('google-key.json', scope)
 
         client = gspread.authorize(creds)
-
         sheet = client.open_by_key(SPREADSHEET_ID).worksheet(SHEET_NAME)
 
         return sheet
 
     except Exception as e:
-
-        print("Ошибка Google:", e)
-
+        print("Google ошибка:", e)
         return None
 
 
-# ================= ПРОВЕРКА ЗАЯВОК =================
+# ================= ЗАЯВКИ =================
 
 @tasks.loop(seconds=30)
 async def check_new_applications():
@@ -92,79 +102,70 @@ async def check_new_applications():
 
     try:
 
-        records = sheet.get_all_records()
+        all_records = sheet.get_all_records()
 
         data = load_data()
 
-        last_row = data["last_row"]
+        last_row = data.get("last_row", 0)
 
-        if len(records) > last_row:
+        if len(all_records) > last_row:
 
-            print("Новых заявок:", len(records) - last_row)
+            for i in range(last_row, len(all_records)):
 
-            for i in range(last_row, len(records)):
-                await send_application_to_channel(records[i])
+                record = all_records[i]
 
-            data["last_row"] = len(records)
+                await send_application_to_channel(record)
+
+            data['last_row'] = len(all_records)
 
             save_data(data)
 
     except Exception as e:
-
         print("Ошибка проверки:", e)
 
 
-# ================= ОТПРАВКА ЗАЯВКИ =================
-
 async def send_application_to_channel(record):
 
-    channel = bot.get_channel(CHANNELS["ss"])
+    channel = bot.get_channel(CHANNELS['ss'])
 
-    if channel is None:
-        channel = await bot.fetch_channel(CHANNELS["ss"])
+    if not channel:
+        print("Канал СС не найден")
+        return
 
-    name = record.get("Имя Фамилия (IC)", "Не указано")
-    hours = record.get("Часов в паспорте", "Не указано")
-    discord_name = record.get("Имя пользователя в ДС (ivanov1234)", "Не указано")
+    name = record.get('Имя Фамилия (IC)', 'Не указано')
+    hours = record.get('Часов в паспорте', 'Не указано')
+    discord_name = record.get('Имя пользователя в ДС (ivanov1234)', 'Не указано')
 
     docs = "Не указано"
 
     for key in record.keys():
         if "Паспорт" in key:
             docs = record[key]
-            break
 
     embed = discord.Embed(
-        title="📋 НОВАЯ ЗАЯВКА НА ТРУДОУСТРОЙСТВО",
-        description="Кто-то хочет работать в телекомпании!",
+        title="НОВАЯ ЗАЯВКА",
         color=0x3498db,
         timestamp=datetime.now()
     )
 
-    embed.add_field(name="👤 Имя Фамилия", value=name, inline=True)
-    embed.add_field(name="⏰ Часов в паспорте", value=hours, inline=True)
-
-    if docs.startswith(("http://", "https://")):
-        embed.add_field(name="📎 Документы", value=f"[Ссылка]({docs})", inline=True)
-    else:
-        embed.add_field(name="📎 Документы", value=docs, inline=True)
-
-    embed.add_field(name="💬 Discord", value=discord_name, inline=False)
+    embed.add_field(name="Имя", value=name)
+    embed.add_field(name="Часы", value=hours)
+    embed.add_field(name="Discord", value=discord_name)
 
     msg = await channel.send(embed=embed)
 
     await msg.add_reaction("✅")
     await msg.add_reaction("❌")
-    await msg.add_reaction("📞")
     await msg.add_reaction("📋")
+    await msg.add_reaction("📞")
 
     data = load_data()
 
-    data["application_messages"].append({
+    data['application_messages'].append({
         "message_id": msg.id,
         "name": name,
-        "discord": discord_name,
         "hours": hours,
+        "discord": discord_name,
         "docs": docs
     })
 
@@ -179,176 +180,137 @@ async def on_raw_reaction_add(payload):
     if payload.user_id == bot.user.id:
         return
 
-    if payload.channel_id != CHANNELS["ss"]:
+    if payload.channel_id != CHANNELS['ss']:
         return
 
     channel = bot.get_channel(payload.channel_id)
-
-    if channel is None:
-        channel = await bot.fetch_channel(payload.channel_id)
-
     message = await channel.fetch_message(payload.message_id)
 
-    if message.author.id != bot.user.id:
-        return
-
     guild = bot.get_guild(payload.guild_id)
-
     user = guild.get_member(payload.user_id)
 
     data = load_data()
 
-    application_data = None
+    app = None
 
-    for app in data["application_messages"]:
-        if app["message_id"] == payload.message_id:
-            application_data = app
-            break
+    for a in data['application_messages']:
+        if a['message_id'] == payload.message_id:
+            app = a
 
-    if not application_data:
+    if not app:
         return
 
-    embed = message.embeds[0]
-
-    results_channel = bot.get_channel(CHANNELS["applications"])
-
-    if results_channel is None:
-        results_channel = await bot.fetch_channel(CHANNELS["applications"])
+    results_channel = bot.get_channel(CHANNELS['applications'])
 
     emoji = str(payload.emoji)
 
+    embed = discord.Embed(
+        timestamp=datetime.now()
+    )
+
+    embed.add_field(name="Имя", value=app['name'])
+    embed.add_field(name="Часы", value=app['hours'])
+    embed.add_field(name="Discord", value=app['discord'])
+
     if emoji == "✅":
 
-        embed.title = "✅ ЗАЯВКА ПРИНЯТА"
+        embed.title = "ЗАЯВКА ПРИНЯТА"
         embed.color = 0x2ecc71
+        embed.add_field(name="Решение", value=f"Принял {user.mention}")
 
         await message.edit(embed=embed)
 
-        await results_channel.send(
-            f"✅ **Заявка принята**\n"
-            f"👤 {application_data['name']}\n"
-            f"👮 Администратор: {user.mention}"
-        )
+        if results_channel:
+            await results_channel.send(embed=embed)
 
     elif emoji == "❌":
 
-        embed.title = "❌ ЗАЯВКА ОТКЛОНЕНА"
+        embed.title = "ЗАЯВКА ОТКЛОНЕНА"
         embed.color = 0xe74c3c
+        embed.add_field(name="Решение", value=f"Отклонил {user.mention}")
 
         await message.edit(embed=embed)
 
-        await results_channel.send(
-            f"❌ **Заявка отклонена**\n"
-            f"👤 {application_data['name']}\n"
-            f"👮 Администратор: {user.mention}"
-        )
-
-    elif emoji == "📞":
-
-        await channel.send(f"📞 {user.mention} свяжется с кандидатом")
+        if results_channel:
+            await results_channel.send(embed=embed)
 
     elif emoji == "📋":
 
-        embed.title = "📋 ЗАЯВКА В РАССМОТРЕНИИ"
-        embed.color = 0xf1c40f
+        await channel.send(f"{user.mention} взял заявку на рассмотрение")
 
-        await message.edit(embed=embed)
+    elif emoji == "📞":
 
-        await channel.send(f"📋 Заявка взята в рассмотрение {user.mention}")
+        await channel.send(f"{user.mention} проведет интервью")
+
+    await message.remove_reaction(payload.emoji, user)
 
 
 # ================= КОМАНДЫ =================
 
-@bot.tree.command(name="новости", description="Отправить новость", guild=guild_obj)
-async def news(interaction: discord.Interaction, заголовок: str, текст: str):
+@bot.tree.command(name="новости")
+async def news(interaction: discord.Interaction, текст: str):
+
+    if not check_permissions(interaction):
+        return await interaction.response.send_message("Нет прав")
+
+    channel = bot.get_channel(CHANNELS['news'])
 
     embed = discord.Embed(
-        title=f"📰 {заголовок}",
+        title="НОВОСТИ",
         description=текст,
-        color=0x3498db,
-        timestamp=datetime.now()
+        color=0x3498db
     )
 
-    embed.set_footer(text=f"Автор: {interaction.user}")
-
-    await interaction.channel.send(embed=embed)
+    await channel.send(embed=embed)
 
     await interaction.response.send_message("Новость отправлена", ephemeral=True)
 
 
-@bot.tree.command(name="репортаж", description="Сделать репортаж", guild=guild_obj)
-async def report(interaction: discord.Interaction, место: str, текст: str):
+@bot.tree.command(name="репортаж")
+async def report(interaction: discord.Interaction, текст: str):
+
+    if not check_permissions(interaction):
+        return await interaction.response.send_message("Нет прав")
+
+    channel = bot.get_channel(CHANNELS['reports'])
 
     embed = discord.Embed(
-        title=f"🎥 РЕПОРТАЖ ИЗ {место}",
+        title="РЕПОРТАЖ",
         description=текст,
-        color=0xe67e22,
-        timestamp=datetime.now()
+        color=0xe67e22
     )
 
-    await interaction.channel.send(embed=embed)
+    await channel.send(embed=embed)
 
     await interaction.response.send_message("Репортаж отправлен", ephemeral=True)
 
 
-@bot.tree.command(name="выговор", description="Выдать выговор", guild=guild_obj)
+@bot.tree.command(name="выговор")
 async def warn(interaction: discord.Interaction, пользователь: discord.Member, причина: str):
 
-    data = load_data()
+    if not check_permissions(interaction):
+        return await interaction.response.send_message("Нет прав")
 
-    uid = str(пользователь.id)
-
-    if uid not in data["warns"]:
-        data["warns"][uid] = []
-
-    wid = len(data["warns"][uid]) + 1
-
-    data["warns"][uid].append({
-        "id": wid,
-        "reason": причина,
-        "moderator": interaction.user.name,
-        "date": str(datetime.now())
-    })
-
-    save_data(data)
-
-    role = discord.utils.get(interaction.guild.roles, name=ROLE_WARN)
+    role = discord.utils.get(interaction.guild.roles, name=WARN_ROLE)
 
     if role:
         await пользователь.add_roles(role)
 
     await interaction.response.send_message(
-        f"⚠ Выговор №{wid} выдан {пользователь.mention}"
+        f"{пользователь.mention} получил выговор\nПричина: {причина}"
     )
 
 
-@bot.tree.command(name="выговоры", description="Посмотреть выговоры", guild=guild_obj)
-async def warns(interaction: discord.Interaction, пользователь: discord.Member):
+# ================= SYNC =================
 
-    data = load_data()
+@bot.command()
+async def sync(ctx):
 
-    uid = str(пользователь.id)
+    if ctx.author.guild_permissions.administrator:
 
-    if uid not in data["warns"]:
-        await interaction.response.send_message("Выговоров нет")
-        return
+        synced = await bot.tree.sync()
 
-    text = ""
-
-    for w in data["warns"][uid]:
-        text += f"№{w['id']} | {w['reason']} | {w['moderator']}\n"
-
-    await interaction.response.send_message(text)
-
-
-@bot.tree.command(name="проверить_заявки", description="Проверить заявки", guild=guild_obj)
-async def check_now(interaction: discord.Interaction):
-
-    await interaction.response.send_message("Проверяю...", ephemeral=True)
-
-    await check_new_applications()
-
-    await interaction.followup.send("Готово", ephemeral=True)
+        await ctx.send(f"Синхронизировано {len(synced)} команд")
 
 
 # ================= READY =================
@@ -356,15 +318,17 @@ async def check_now(interaction: discord.Interaction):
 @bot.event
 async def on_ready():
 
-    print("Бот запущен как", bot.user)
+    print("Бот запущен:", bot.user)
 
     check_new_applications.start()
 
-    synced = await bot.tree.sync(guild=guild_obj)
+    synced = await bot.tree.sync()
 
-    print("Команд синхронизировано:", len(synced))
+    print("Команд:", len(synced))
 
 
-# ================= СТАРТ =================
+keep_alive()
+
+TOKEN = os.environ.get("TOKEN")
 
 bot.run(TOKEN)
