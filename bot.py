@@ -223,6 +223,64 @@ async def show_schedule(interaction: discord.Interaction):
         embed.add_field(name=f"{i}. {item['date']}", value=f"**{item['user']}**\n{item['topic']}", inline=False)
     await interaction.response.send_message(embed=embed)
 
+
+
+# ==================== ВЫГОВОРЫ ====================
+
+@bot.tree.command(name="выговор", description="Выдать выговор сотруднику")
+@app_commands.describe(сотрудник="Сотрудник", причина="Причина выговора")
+async def warn(interaction: discord.Interaction, сотрудник: discord.Member, причина: str):
+    if not check_permissions(interaction):
+        await interaction.response.send_message("❌ Нет прав", ephemeral=True)
+        return
+
+    data = load_data()
+    user_id = str(сотрудник.id)
+
+    if user_id not in data['warns']:
+        data['warns'][user_id] = []
+
+    warn_data = {
+        'id': len(data['warns'][user_id]) + 1,
+        'reason': причина,
+        'moderator': interaction.user.display_name,
+        'date': str(datetime.now())
+    }
+
+    data['warns'][user_id].append(warn_data)
+    save_data(data)
+
+    await interaction.response.send_message(f"✅ Выговор №{warn_data['id']} выдан {сотрудник.mention}", ephemeral=True)
+
+
+@bot.tree.command(name="выговоры", description="Показать выговоры сотрудника")
+@app_commands.describe(сотрудник="Сотрудник")
+async def check_warns(interaction: discord.Interaction, сотрудник: discord.Member):
+    if not check_permissions(interaction):
+        await interaction.response.send_message("❌ Нет прав", ephemeral=True)
+        return
+
+    data = load_data()
+    user_id = str(сотрудник.id)
+
+    if user_id not in data['warns'] or not data['warns'][user_id]:
+        await interaction.response.send_message(f"✅ У {сотрудник.mention} нет выговоров", ephemeral=True)
+        return
+
+    embed = discord.Embed(
+        title=f"📋 Выговоры: {сотрудник.display_name}",
+        color=0xf1c40f
+    )
+
+    for warn in data['warns'][user_id][-5:]:
+        embed.add_field(
+            name=f"Выговор №{warn['id']} от {warn['date'][:10]}",
+            value=f"Причина: {warn['reason']}\nМодератор: {warn['moderator']}",
+            inline=False
+        )
+
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
 # ==================== ЗАПУСК ====================
 
 @bot.event
@@ -241,4 +299,5 @@ if TOKEN:
     bot.run(TOKEN)
 else:
     print("❌ Токен не найден")
+
 
