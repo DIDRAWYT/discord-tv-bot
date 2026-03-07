@@ -212,20 +212,41 @@ async def report(interaction: discord.Interaction, место: str, текст: 
         save_data(data)
         await interaction.response.send_message("✅ Репортаж опубликован", ephemeral=True)
 
-# Выговор
-@bot.tree.command(name="выговор", description="Выдать выговор сотруднику")
+# Выговор с выдачей роли
+@bot.tree.command(name="выговор", description="Выдать выговор сотруднику и дать роль Выговор")
 @app_commands.describe(сотрудник="Сотрудник", причина="Причина выговора")
 async def warn(interaction: discord.Interaction, сотрудник: discord.Member, причина: str):
     if not check_permissions(interaction):
         await interaction.response.send_message("❌ Нет прав", ephemeral=True)
         return
+
     data = load_data()
     uid = str(сотрудник.id)
     data.setdefault("warns", {}).setdefault(uid, [])
-    warn_data = {"id": len(data["warns"][uid]) + 1, "reason": причина, "moderator": interaction.user.name, "date": str(datetime.now())}
+    
+    warn_data = {
+        "id": len(data["warns"][uid]) + 1,
+        "reason": причина,
+        "moderator": interaction.user.name,
+        "date": str(datetime.now())
+    }
     data["warns"][uid].append(warn_data)
     save_data(data)
-    await interaction.response.send_message(f"✅ Выговор №{warn_data['id']} выдан {сотрудник.mention}", ephemeral=True)
+
+    # ==================== ВЫДАЧА РОЛИ ====================
+    role = discord.utils.get(interaction.guild.roles, name="Выговор")
+    if role:
+        try:
+            await сотрудник.add_roles(role, reason=f"Выговор №{warn_data['id']} выдан {interaction.user}")
+        except Exception as e:
+            print(f"❌ Не удалось выдать роль: {e}")
+    else:
+        print("❌ Роль 'Выговор' не найдена на сервере")
+
+    await interaction.response.send_message(
+        f"✅ Выговор №{warn_data['id']} выдан {сотрудник.mention} и роль 'Выговор' назначена",
+        ephemeral=True
+    )
 
 # Выговоры
 @bot.tree.command(name="выговоры", description="Показать выговоры сотрудника")
@@ -268,3 +289,4 @@ if __name__ == "__main__":
         bot.run(TOKEN)
     else:
         print("❌ Токен не найден")
+
