@@ -58,23 +58,19 @@ def check_permissions(interaction):
 # ==================== GOOGLE SHEETS ====================
 
 def get_google_sheet():
+    """Подключение к Google Sheets через чистый JSON из переменной окружения"""
     try:
-        # Переменная окружения
-        encoded_creds = os.environ.get('GOOGLE_CREDENTIALS')
-        if encoded_creds:
-            import base64
-            creds_json = base64.b64decode(encoded_creds).decode('utf-8')
-            creds_dict = json.loads(creds_json)
-            scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-            creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
-            print("✅ Google Sheets через переменные")
-        else:
-            scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-            creds = ServiceAccountCredentials.from_json_keyfile_name('google-key.json', scope)
-            print("✅ Google Sheets через файл")
+        creds_json = os.environ.get('GOOGLE_CREDENTIALS')
+        if not creds_json:
+            print("❌ GOOGLE_CREDENTIALS не найден")
+            return None
+
+        creds_dict = json.loads(creds_json)
+        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+        creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
         client = gspread.authorize(creds)
         sheet = client.open_by_key(SPREADSHEET_ID).worksheet(SHEET_NAME)
-        print("✅ Google Sheets подключён")
+        print("✅ Google Sheets подключён через переменную JSON")
         return sheet
     except Exception as e:
         print(f"Google ошибка: {e}")
@@ -245,3 +241,4 @@ if TOKEN:
     bot.run(TOKEN)
 else:
     print("❌ Токен не найден")
+
