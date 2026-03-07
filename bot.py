@@ -230,8 +230,43 @@ async def sign_interview(interaction: discord.Interaction, день: str, вре
     channel = bot.get_channel(CHANNELS['interviews'])
     if channel: await channel.send(f"📝 {interaction.user.mention} записался на интервью: {день} {время}")
     await interaction.response.send_message(f"✅ Вы записаны на интервью {день} в {время}", ephemeral=True)
+    
+@bot.event
+async def on_reaction_add(reaction, user):
+    if user.bot:
+        return
+
+    message = reaction.message
+
+    # проверяем что это заявка
+    if not message.embeds:
+        return
+
+    embed = message.embeds[0]
+
+    if "НОВАЯ ЗАЯВКА" not in embed.title:
+        return
+
+    result_channel = bot.get_channel(1479581481444839537)
+
+    name = embed.fields[0].value
+
+    if reaction.emoji == "✅":
+        text = f"✅ **Заявка принята**\n👤 {name}"
+    elif reaction.emoji == "❌":
+        text = f"❌ **Заявка отклонена**\n👤 {name}"
+    elif reaction.emoji == "📞":
+        text = f"📞 **Заявка отправлена на интервью**\n👤 {name}"
+    elif reaction.emoji == "📋":
+        text = f"📋 **Заявка отправлена на повторную проверку**\n👤 {name}"
+    else:
+        return
+
+    if result_channel:
+        await result_channel.send(text)
 
 # ================= ЗАПУСК =================
 keep_alive()
 TOKEN = os.environ["DISCORD_TOKEN"]
 bot.run(TOKEN)
+
