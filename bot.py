@@ -329,6 +329,7 @@ async def on_ready():
 
 keep_alive()
 
-TOKEN = os.environ.get("TOKEN")
+TOKEN = os.environ.get("DISCORD_TOKEN")
 
 bot.run(TOKEN)
+
