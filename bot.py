@@ -141,6 +141,47 @@ async def send_application_to_channel(record):
 
 # ==================== КОМАНДЫ ====================
 
+@bot.tree.command(name="добавить_в_расписание", description="Добавить событие в расписание")
+@app_commands.describe(
+    дата="Дата события",
+    сотрудник="Кто проводит",
+    тема="Тема"
+)
+async def add_schedule(interaction: discord.Interaction, дата: str, сотрудник: str, тема: str):
+
+    if not check_permissions(interaction):
+        await interaction.response.send_message("❌ Нет прав", ephemeral=True)
+        return
+
+    data = load_data()
+
+    data.setdefault("schedule", []).append({
+        "date": дата,
+        "user": сотрудник,
+        "topic": тема
+    })
+
+    save_data(data)
+
+    # канал расписания
+    channel = bot.get_channel(1478826477880344586)
+
+    embed = discord.Embed(
+        title="📅 НОВОЕ СОБЫТИЕ В РАСПИСАНИИ",
+        color=0x3498db
+    )
+
+    embed.add_field(name="📆 Дата", value=дата, inline=False)
+    embed.add_field(name="👤 Сотрудник", value=сотрудник, inline=False)
+    embed.add_field(name="📝 Тема", value=тема, inline=False)
+
+    embed.set_footer(text=f"Добавил: {interaction.user.display_name}")
+
+    if channel:
+        await channel.send(embed=embed)
+
+    await interaction.response.send_message("✅ Событие добавлено в расписание", ephemeral=True)
+
 # Вакансии
 @bot.tree.command(name="вакансии", description="Посмотреть вакансии и подать заявку")
 async def vacancies(interaction: discord.Interaction):
@@ -289,4 +330,5 @@ if __name__ == "__main__":
         bot.run(TOKEN)
     else:
         print("❌ Токен не найден")
+
 
