@@ -273,6 +273,7 @@ async def warn(interaction: discord.Interaction, сотрудник: discord.Mem
     }
     data["warns"][uid].append(warn_data)
     save_data(data)
+    
 
     # ==================== ВЫДАЧА РОЛИ ====================
     role = discord.utils.get(interaction.guild.roles, name="Выговор")
@@ -306,11 +307,6 @@ async def check_warns(interaction: discord.Interaction, сотрудник: disc
     for warn in warns[-5:]:
         embed.add_field(name=f"Выговор №{warn['id']} от {warn['date'][:10]}", value=f"Причина: {warn['reason']}\nМодератор: {warn['moderator']}", inline=False)
     await interaction.response.send_message(embed=embed, ephemeral=True)
-    
-    @bot.command()
-async def sync(ctx):
-    synced = await bot.tree.sync()
-    await ctx.send(f"✅ Синхронизировано {len(synced)} команд")
 
 # ==================== ЗАПУСК ====================
 @bot.event
@@ -337,6 +333,7 @@ if __name__ == "__main__":
         bot.run(TOKEN)
     else:
         print("❌ Токен не найден")
+
 
 
 
