@@ -311,14 +311,20 @@ async def check_warns(interaction: discord.Interaction, сотрудник: disc
 @bot.event
 async def on_ready():
     print(f"✅ Бот запущен: {bot.user}")
+
     check_new_applications.start()
 
     try:
-        await bot.tree.clear_commands()  # удаляем старые команды
+        # Удаляем старые команды с сервера
+        bot.tree.clear_commands(guild=None)
+
+        # Синхронизируем новые
         synced = await bot.tree.sync()
-        print(f"✅ Команд загружено: {len(synced)}")
+
+        print(f"✅ Команд синхронизировано: {len(synced)}")
         for cmd in synced:
-            print(f"   - /{cmd.name}")
+            print(f"/{cmd.name}")
+
     except Exception as e:
         print(f"❌ Ошибка синхронизации: {e}")
 
@@ -330,5 +336,6 @@ if __name__ == "__main__":
         bot.run(TOKEN)
     else:
         print("❌ Токен не найден")
+
 
 
