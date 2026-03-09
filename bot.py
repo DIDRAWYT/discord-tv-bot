@@ -306,6 +306,11 @@ async def check_warns(interaction: discord.Interaction, сотрудник: disc
     for warn in warns[-5:]:
         embed.add_field(name=f"Выговор №{warn['id']} от {warn['date'][:10]}", value=f"Причина: {warn['reason']}\nМодератор: {warn['moderator']}", inline=False)
     await interaction.response.send_message(embed=embed, ephemeral=True)
+    
+    @bot.command()
+async def sync(ctx):
+    synced = await bot.tree.sync()
+    await ctx.send(f"✅ Синхронизировано {len(synced)} команд")
 
 # ==================== ЗАПУСК ====================
 @bot.event
@@ -315,13 +320,9 @@ async def on_ready():
     check_new_applications.start()
 
     try:
-        # Удаляем старые команды с сервера
-        bot.tree.clear_commands(guild=None)
-
-        # Синхронизируем новые
         synced = await bot.tree.sync()
-
         print(f"✅ Команд синхронизировано: {len(synced)}")
+
         for cmd in synced:
             print(f"/{cmd.name}")
 
