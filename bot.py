@@ -274,7 +274,72 @@ async def warn(interaction: discord.Interaction, сотрудник: discord.Mem
     data["warns"][uid].append(warn_data)
     save_data(data)
     
+@bot.tree.command(name="настроить_структуру", description="Создать роли и рабочие каналы телеканала")
+async def setup_structure(interaction: discord.Interaction):
 
+    if not interaction.user.guild_permissions.administrator:
+        await interaction.response.send_message("❌ Нужны права администратора", ephemeral=True)
+        return
+
+    guild = interaction.guild
+
+    created_roles = []
+    created_channels = []
+
+    # РОЛИ
+    roles = [
+        "Корреспондент",
+        "Редактор",
+        "Ведущий",
+        "Монтажёр"
+    ]
+
+    for role_name in roles:
+
+        role = discord.utils.get(guild.roles, name=role_name)
+
+        if not role:
+            await guild.create_role(name=role_name)
+            created_roles.append(role_name)
+
+    # КАНАЛЫ
+    channels = [
+        "интервью",
+        "план_съемок",
+        "монтажная",
+        "редакция",
+        "архив_выпусков",
+        "идеи_репортажей",
+        "срочные_новости"
+    ]
+
+    for ch in channels:
+
+        channel = discord.utils.get(guild.text_channels, name=ch)
+
+        if not channel:
+            await guild.create_text_channel(ch)
+            created_channels.append(ch)
+
+    embed = discord.Embed(
+        title="✅ Настройка телеканала завершена",
+        color=0x2ecc71
+    )
+
+    embed.add_field(
+        name="Созданные роли",
+        value="\n".join(created_roles) if created_roles else "Новых ролей не создано",
+        inline=False
+    )
+
+    embed.add_field(
+        name="Созданные каналы",
+        value="\n".join(created_channels) if created_channels else "Новых каналов не создано",
+        inline=False
+    )
+
+    await interaction.response.send_message(embed=embed)
+    
     # ==================== ВЫДАЧА РОЛИ ====================
     role = discord.utils.get(interaction.guild.roles, name="Выговор")
     if role:
@@ -333,6 +398,7 @@ if __name__ == "__main__":
         bot.run(TOKEN)
     else:
         print("❌ Токен не найден")
+
 
 
 
