@@ -192,7 +192,7 @@ async def vacancies(interaction: discord.Interaction):
     )
     embed.add_field(
         name="📹 Вакансии",
-        value="• Корреспондент\n• Оператор\n• Звукорежиссёр\n• Редактор\n• Ведущий\n• Монтажёр",
+        value="• Корреспондент\n• Звукорежиссёр\n• Редактор\n• Ведущий\n• Монтажёр",
         inline=False
     )
     embed.add_field(
@@ -398,6 +398,7 @@ if __name__ == "__main__":
         bot.run(TOKEN)
     else:
         print("❌ Токен не найден")
+
 
 
 
