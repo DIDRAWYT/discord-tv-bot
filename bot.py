@@ -23,7 +23,7 @@ CHANNELS = {
 }
 
 # Роли с правами
-ALLOWED_ROLES = ["Директор", "Заместитель Директора"]
+ALLOWED_ROLES = ["Директор", "Заместитель Директора", "Старший Начальствующий Состав"]
 
 # Google Sheets
 SPREADSHEET_ID = "1zL5rRk-zny2riAdRSUl2ZiA-pK76--dGdSJObuVLZRs"
